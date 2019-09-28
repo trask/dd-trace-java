@@ -1,15 +1,12 @@
 package datadog.trace.agent.decorator
 
-
 import datadog.trace.agent.test.utils.ConfigUtils
 import datadog.trace.api.DDTags
-import io.opentracing.Scope
-import io.opentracing.Span
+import datadog.trace.instrumentation.api.AgentScope
+import datadog.trace.instrumentation.api.AgentSpan
 import io.opentracing.tag.Tags
 import spock.lang.Shared
 import spock.lang.Specification
-
-import static io.opentracing.log.Fields.ERROR_OBJECT
 
 class BaseDecoratorTest extends Specification {
 
@@ -20,7 +17,7 @@ class BaseDecoratorTest extends Specification {
   @Shared
   def decorator = newDecorator()
 
-  def span = Mock(Span)
+  def span = Mock(AgentSpan)
 
   def "test afterStart"() {
     when:
@@ -65,8 +62,8 @@ class BaseDecoratorTest extends Specification {
 
     then:
     if (error) {
-      1 * span.setTag(Tags.ERROR.key, true)
-      1 * span.log([(ERROR_OBJECT): error])
+      1 * span.setError(true)
+      1 * span.addThrowable(error)
     }
     0 * _
 
@@ -84,25 +81,25 @@ class BaseDecoratorTest extends Specification {
 
   def "test assert null span"() {
     when:
-    decorator.afterStart((Span) null)
+    decorator.afterStart((AgentSpan) null)
 
     then:
     thrown(AssertionError)
 
     when:
-    decorator.onError((Span) null, null)
+    decorator.onError((AgentSpan) null, null)
 
     then:
     thrown(AssertionError)
 
     when:
-    decorator.onPeerConnection((Span) null, null)
+    decorator.onError((AgentSpan) null, null)
 
     then:
     thrown(AssertionError)
 
     when:
-    decorator.beforeFinish((Span) null)
+    decorator.onPeerConnection((AgentSpan) null, null)
 
     then:
     thrown(AssertionError)
@@ -110,19 +107,19 @@ class BaseDecoratorTest extends Specification {
 
   def "test assert null scope"() {
     when:
-    decorator.afterStart((Scope) null)
+    decorator.onError((AgentScope) null, null)
 
     then:
     thrown(AssertionError)
 
     when:
-    decorator.onError((Scope) null, null)
+    decorator.onError((AgentScope) null, null)
 
     then:
     thrown(AssertionError)
 
     when:
-    decorator.beforeFinish((Scope) null)
+    decorator.beforeFinish((AgentScope) null)
 
     then:
     thrown(AssertionError)
@@ -130,14 +127,8 @@ class BaseDecoratorTest extends Specification {
 
   def "test assert non-null scope"() {
     setup:
-    def span = Mock(Span)
-    def scope = Mock(Scope)
-
-    when:
-    decorator.afterStart(scope)
-
-    then:
-    1 * scope.span() >> span
+    def span = Mock(AgentSpan)
+    def scope = Mock(AgentScope)
 
     when:
     decorator.onError(scope, null)

@@ -6,8 +6,10 @@ import java.util.Collections;
 import java.util.List;
 import javax.servlet.http.HttpServletRequest;
 
-public class HttpServletRequestGetter implements Propagation.Getter<HttpServletRequest> {
-  public static HttpServletRequestGetter GETTER = new HttpServletRequestGetter();
+public class HttpServletRequestExtractAdapter implements Propagation.Getter<HttpServletRequest> {
+
+  public static final HttpServletRequestExtractAdapter GETTER =
+      new HttpServletRequestExtractAdapter();
 
   @Override
   public List<String> keys(final HttpServletRequest carrier) {

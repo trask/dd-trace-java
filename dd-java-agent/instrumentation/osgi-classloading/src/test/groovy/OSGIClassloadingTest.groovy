@@ -14,7 +14,7 @@ class OSGIClassloadingTest extends AgentTestRunner {
     org.osgi.framework.Bundle.getName()
 
     then:
-    System.getProperty("org.osgi.framework.bootdelegation") == "datadog.slf4j.*,datadog.slf4j,datadog.trace.agent.TracingAgent.*,datadog.trace.agent.TracingAgent,datadog.trace.api.*,datadog.trace.api,datadog.trace.bootstrap.*,datadog.trace.bootstrap,datadog.trace.context.*,datadog.trace.context,io.opentracing.*,io.opentracing"
+    System.getProperty("org.osgi.framework.bootdelegation") == "datadog.slf4j.*,datadog.slf4j,datadog.trace.agent.TracingAgent.*,datadog.trace.agent.TracingAgent,datadog.trace.api.*,datadog.trace.api,datadog.trace.bootstrap.*,datadog.trace.bootstrap,datadog.trace.context.*,datadog.trace.context,io.opentracing.*,io.opentracing,datadog.trace.instrumentation.api.*,datadog.trace.instrumentation.api"
   }
 
   def "test OSGi framework factory"() {

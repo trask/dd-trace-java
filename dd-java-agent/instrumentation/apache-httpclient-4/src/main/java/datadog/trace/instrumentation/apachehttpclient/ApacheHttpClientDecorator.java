@@ -14,11 +14,6 @@ public class ApacheHttpClientDecorator extends HttpClientDecorator<HttpUriReques
   }
 
   @Override
-  public String spanName() {
-    return "http.request";
-  }
-
-  @Override
   protected String component() {
     return "apache-httpclient";
   }

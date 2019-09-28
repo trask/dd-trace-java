@@ -4,6 +4,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.instrumentation.api.AgentSpan;
+import io.opentracing.tag.Tags;
 import java.net.URI;
 import java.net.URISyntaxException;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +35,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
   public AgentSpan onRequest(final AgentSpan span, final REQUEST request) {
     assert span != null;
     if (request != null) {
-      span.setMetadata("http.method", method(request));
+      span.setTag(Tags.HTTP_METHOD.getKey(), method(request));
 
       // Copy of HttpServerDecorator url handling
       try {
@@ -59,24 +60,26 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
             urlNoParams.append(path);
           }
 
-          span.setMetadata("http.url", urlNoParams.toString());
+          span.setTag(Tags.HTTP_URL.getKey(), urlNoParams.toString());
 
           if (Config.get().isHttpClientTagQueryString()) {
-            span.setMetadata(DDTags.HTTP_QUERY, url.getQuery());
-            span.setMetadata(DDTags.HTTP_FRAGMENT, url.getFragment());
+            span.setTag(DDTags.HTTP_QUERY, url.getQuery());
+            span.setTag(DDTags.HTTP_FRAGMENT, url.getFragment());
           }
         }
       } catch (final Exception e) {
         log.debug("Error tagging url", e);
       }
 
-      span.setMetadata("peer.hostname", hostname(request));
+      span.setTag(Tags.PEER_HOSTNAME.getKey(), hostname(request));
       final Integer port = port(request);
       // Negative or Zero ports might represent an unset/null value for an int type.  Skip setting.
-      span.setMetadata("peer.port", port != null && port > 0 ? port : null);
+      if (port != null && port > 0) {
+        span.setTag(Tags.PEER_PORT.getKey(), port);
+      }
 
       if (Config.get().isHttpClientSplitByDomain()) {
-        span.setMetadata(DDTags.SERVICE_NAME, hostname(request));
+        span.setTag(DDTags.SERVICE_NAME, hostname(request));
       }
     }
     return span;
@@ -87,7 +90,7 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends ClientDecor
     if (response != null) {
       final Integer status = status(response);
       if (status != null) {
-        span.setMetadata("http.status_code", status);
+        span.setTag(Tags.HTTP_STATUS.getKey(), status);
 
         if (Config.get().getHttpClientErrorStatuses().contains(status)) {
           span.setError(true);

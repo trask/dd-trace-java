@@ -2,7 +2,8 @@ package datadog.trace.instrumentation.apachehttpasyncclient;
 
 import static datadog.trace.agent.tooling.ByteBuddyElementMatchers.safeHasSuperType;
 import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator.DECORATE;
-import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientInstrumentation.HttpHeadersSetter.SETTER;
+import static datadog.trace.instrumentation.apachehttpasyncclient.HttpHeadersInjectAdapter.SETTER;
+import static datadog.trace.instrumentation.api.AgentTracer.activeScope;
 import static datadog.trace.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.instrumentation.api.AgentTracer.startSpan;
 import static java.util.Collections.singletonMap;
@@ -45,13 +46,13 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Default {
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      getClass().getName() + "$HttpHeadersSetter",
+      packageName + ".HttpHeadersInjectAdapter",
       getClass().getName() + "$DelegatingRequestProducer",
       getClass().getName() + "$TraceContinuedFutureCallback",
       "datadog.trace.agent.decorator.BaseDecorator",
       "datadog.trace.agent.decorator.ClientDecorator",
       "datadog.trace.agent.decorator.HttpClientDecorator",
-      packageName + ".ApacheHttpAsyncClientDecorator",
+      packageName + ".ApacheHttpAsyncClientDecorator"
     };
   }
 
@@ -76,21 +77,25 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Default {
         @Advice.Argument(2) final HttpContext context,
         @Advice.Argument(value = 3, readOnly = false) FutureCallback<?> futureCallback) {
 
-      final TraceScope.Continuation parentContinuation = propagate().capture();
-      final AgentSpan clientSpan = startSpan(DECORATE);
+      final TraceScope parentScope = activeScope();
+      final AgentSpan clientSpan = startSpan("http.request");
+      DECORATE.afterStart(clientSpan);
 
       requestProducer = new DelegatingRequestProducer(clientSpan, requestProducer);
       futureCallback =
-          new TraceContinuedFutureCallback(parentContinuation, clientSpan, context, futureCallback);
+          new TraceContinuedFutureCallback(parentScope, clientSpan, context, futureCallback);
 
       return clientSpan;
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void methodExit(
-        @Advice.Enter final AgentSpan span, @Advice.Thrown final Throwable throwable) {
+        @Advice.Enter final AgentSpan span,
+        @Advice.Return final Object result,
+        @Advice.Thrown final Throwable throwable) {
       if (throwable != null) {
         DECORATE.onError(span, throwable);
+        DECORATE.beforeFinish(span);
         span.finish();
       }
     }
@@ -115,7 +120,9 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Default {
     public HttpRequest generateRequest() throws IOException, HttpException {
       final HttpRequest request = delegate.generateRequest();
       DECORATE.onRequest(span, request);
+
       propagate().inject(span, request, SETTER);
+
       return request;
     }
 
@@ -158,11 +165,15 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Default {
     private final FutureCallback<T> delegate;
 
     public TraceContinuedFutureCallback(
-        final TraceScope.Continuation parentContinuation,
+        final TraceScope parentScope,
         final AgentSpan clientSpan,
         final HttpContext context,
         final FutureCallback<T> delegate) {
-      this.parentContinuation = parentContinuation;
+      if (parentScope != null) {
+        parentContinuation = parentScope.capture();
+      } else {
+        parentContinuation = null;
+      }
       this.clientSpan = clientSpan;
       this.context = context;
       // Note: this can be null in real life, so we have to handle this carefully
@@ -189,6 +200,7 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Default {
     public void failed(final Exception ex) {
       DECORATE.onResponse(clientSpan, context);
       DECORATE.onError(clientSpan, ex);
+      DECORATE.beforeFinish(clientSpan);
       clientSpan.finish(); // Finish span before calling delegate
 
       if (parentContinuation == null) {
@@ -204,6 +216,7 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Default {
     @Override
     public void cancelled() {
       DECORATE.onResponse(clientSpan, context);
+      DECORATE.beforeFinish(clientSpan);
       clientSpan.finish(); // Finish span before calling delegate
 
       if (parentContinuation == null) {
@@ -232,16 +245,6 @@ public class ApacheHttpAsyncClientInstrumentation extends Instrumenter.Default {
       if (delegate != null) {
         delegate.cancelled();
       }
-    }
-  }
-
-  public static class HttpHeadersSetter
-      implements datadog.trace.instrumentation.api.Propagation.Setter<org.apache.http.HttpRequest> {
-    public static HttpHeadersSetter SETTER = new HttpHeadersSetter();
-
-    @Override
-    public void set(final HttpRequest carrier, final String key, final String value) {
-      carrier.setHeader(key, value);
     }
   }
 }

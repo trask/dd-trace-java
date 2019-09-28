@@ -4,6 +4,7 @@ import datadog.trace.agent.decorator.DatabaseClientDecorator;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.instrumentation.api.AgentSpan;
+import io.opentracing.tag.Tags;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -17,11 +18,6 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   @Override
   protected String[] instrumentationNames() {
     return new String[] {"jdbc"};
-  }
-
-  @Override
-  public String spanName() {
-    return "database.query";
   }
 
   @Override
@@ -85,8 +81,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     }
 
     if (dbInfo != null) {
-      span.setMetadata("db.type", dbInfo.getType());
-      span.setMetadata(DDTags.SERVICE_NAME, dbInfo.getType());
+      span.setTag(Tags.DB_TYPE.getKey(), dbInfo.getType());
+      span.setTag(DDTags.SERVICE_NAME, dbInfo.getType());
     }
     return super.onConnection(span, dbInfo);
   }
@@ -94,18 +90,16 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   @Override
   public AgentSpan onStatement(final AgentSpan span, final String statement) {
     final String resourceName = statement == null ? DB_QUERY : statement;
-    span.setMetadata(DDTags.RESOURCE_NAME, resourceName);
-    span.setMetadata("component", "java-jdbc-statement");
-    span.setMetadata("span.origin.type", statement.getClass().getName());
+    span.setTag(DDTags.RESOURCE_NAME, resourceName);
+    span.setTag(Tags.COMPONENT.getKey(), "java-jdbc-statement");
     return super.onStatement(span, statement);
   }
 
   public AgentSpan onPreparedStatement(final AgentSpan span, final PreparedStatement statement) {
     final String sql = JDBCMaps.preparedStatements.get(statement);
     final String resourceName = sql == null ? DB_QUERY : sql;
-    span.setMetadata(DDTags.RESOURCE_NAME, resourceName);
-    span.setMetadata("component", "java-jdbc-prepared_statement");
-    span.setMetadata("span.origin.type", statement.getClass().getName());
+    span.setTag(DDTags.RESOURCE_NAME, resourceName);
+    span.setTag(Tags.COMPONENT.getKey(), "java-jdbc-prepared_statement");
     return super.onStatement(span, sql);
   }
 }

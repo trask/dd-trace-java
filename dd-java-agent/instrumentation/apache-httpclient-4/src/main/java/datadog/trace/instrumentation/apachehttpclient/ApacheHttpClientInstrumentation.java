@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.apachehttpclient;
 
 import static datadog.trace.agent.tooling.ByteBuddyElementMatchers.safeHasSuperType;
 import static datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientDecorator.DECORATE;
-import static datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientSetter.SETTER;
+import static datadog.trace.instrumentation.apachehttpclient.HttpHeadersInjectAdapter.SETTER;
 import static datadog.trace.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.instrumentation.api.AgentTracer.propagate;
 import static datadog.trace.instrumentation.api.AgentTracer.startSpan;
@@ -26,6 +26,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.http.HttpResponse;
+import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.methods.HttpUriRequest;
@@ -45,12 +46,12 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".HttpHeadersInjectAdapter",
       getClass().getName() + "$WrappingStatusSettingResponseHandler",
       "datadog.trace.agent.decorator.BaseDecorator",
       "datadog.trace.agent.decorator.ClientDecorator",
       "datadog.trace.agent.decorator.HttpClientDecorator",
       packageName + ".ApacheHttpClientDecorator",
-      packageName + ".ApacheHttpClientSetter",
     };
   }
 
@@ -86,7 +87,8 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
       if (callDepth > 0) {
         return null;
       }
-      final AgentSpan span = startSpan(DECORATE);
+      final AgentSpan span = startSpan("http.request");
+      DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
 
       // Wrap the handler so we capture the status code
@@ -101,7 +103,7 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
       if (!awsClientCall) {
         propagate().inject(span, request, SETTER);
       }
-      return activateSpan(span);
+      return activateSpan(span, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -110,15 +112,16 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
       if (scope != null) {
-        final AgentSpan span = scope.span();
         try {
+          final AgentSpan span = scope.span();
+
           if (result instanceof HttpResponse) {
             DECORATE.onResponse(span, (HttpResponse) result);
           } // else they probably provided a ResponseHandler.
 
           DECORATE.onError(span, throwable);
+          DECORATE.beforeFinish(span);
         } finally {
-          span.finish();
           scope.close();
           CallDepthThreadLocalMap.reset(HttpClient.class);
         }
@@ -137,7 +140,8 @@ public class ApacheHttpClientInstrumentation extends Instrumenter.Default {
     }
 
     @Override
-    public Object handleResponse(final HttpResponse response) throws IOException {
+    public Object handleResponse(final HttpResponse response)
+        throws ClientProtocolException, IOException {
       if (null != span) {
         DECORATE.onResponse(span, response);
       }

@@ -27,7 +27,7 @@ public final class HttpServlet3Instrumentation extends Instrumenter.Default {
       "datadog.trace.agent.decorator.BaseDecorator",
       "datadog.trace.agent.decorator.ServerDecorator",
       "datadog.trace.agent.decorator.HttpServerDecorator",
-      packageName + ".HttpServletRequestGetter",
+      packageName + ".HttpServletRequestExtractAdapter",
       packageName + ".Servlet3Decorator",
       packageName + ".TagSettingAsyncListener",
     };

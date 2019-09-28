@@ -18,11 +18,6 @@ public class Servlet3Decorator
   }
 
   @Override
-  public String spanName() {
-    return "servlet.request";
-  }
-
-  @Override
   protected String component() {
     return "java-web-servlet";
   }
@@ -61,13 +56,13 @@ public class Servlet3Decorator
   public AgentSpan onRequest(final AgentSpan span, final HttpServletRequest request) {
     assert span != null;
     if (request != null) {
-      span.setMetadata("servlet.context", request.getContextPath());
+      span.setTag("servlet.context", request.getContextPath());
     }
     return super.onRequest(span, request);
   }
 
   @Override
-  public Span onError(final Span span, final Throwable throwable) {
+  public AgentSpan onError(final AgentSpan span, final Throwable throwable) {
     if (throwable instanceof ServletException && throwable.getCause() != null) {
       super.onError(span, throwable.getCause());
     } else {

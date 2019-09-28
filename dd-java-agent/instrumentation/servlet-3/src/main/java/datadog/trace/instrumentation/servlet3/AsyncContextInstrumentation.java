@@ -3,7 +3,7 @@ package datadog.trace.instrumentation.servlet3;
 import static datadog.trace.agent.decorator.HttpServerDecorator.DD_SPAN_ATTRIBUTE;
 import static datadog.trace.agent.tooling.ByteBuddyElementMatchers.safeHasSuperType;
 import static datadog.trace.instrumentation.api.AgentTracer.propagate;
-import static datadog.trace.instrumentation.servlet3.HttpServletRequestSetter.SETTER;
+import static datadog.trace.instrumentation.servlet3.HttpServletRequestInjectAdapter.SETTER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isInterface;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -33,7 +33,7 @@ public final class AsyncContextInstrumentation extends Instrumenter.Default {
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".HttpServletRequestSetter"};
+    return new String[] {packageName + ".HttpServletRequestInjectAdapter"};
   }
 
   @Override
@@ -80,7 +80,7 @@ public final class AsyncContextInstrumentation extends Instrumenter.Default {
         } else {
           path = "true";
         }
-        span.setMetadata("servlet.dispatch", path);
+        span.setTag("servlet.dispatch", path);
       }
       return true;
     }

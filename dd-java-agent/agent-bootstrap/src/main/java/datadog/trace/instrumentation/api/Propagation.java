@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.api;
 
 import datadog.trace.context.TraceScope;
-import java.util.List;
 
 public interface Propagation {
 
@@ -16,7 +15,7 @@ public interface Propagation {
   <C> AgentSpan.Context extract(C carrier, Getter<C> getter);
 
   interface Getter<C> {
-    List<String> keys(C carrier);
+    Iterable<String> keys(C carrier);
 
     String get(C carrier, String key);
   }

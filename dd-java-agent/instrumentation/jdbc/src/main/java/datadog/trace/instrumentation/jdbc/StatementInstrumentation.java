@@ -83,18 +83,20 @@ public final class StatementInstrumentation extends Instrumenter.Default {
         return null;
       }
 
-      final AgentSpan span = startSpan(DECORATE);
+      final AgentSpan span = startSpan("database.query");
+      DECORATE.afterStart(span);
       DECORATE.onConnection(span, connection);
       DECORATE.onStatement(span, sql);
-      return activateSpan(span);
+      span.setTag("span.origin.type", statement.getClass().getName());
+      return activateSpan(span, true);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void stopSpan(
         @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
       if (scope != null) {
-        DECORATE.onError(scope, throwable);
-        scope.span().finish();
+        DECORATE.onError(scope.span(), throwable);
+        DECORATE.beforeFinish(scope.span());
         scope.close();
         CallDepthThreadLocalMap.reset(Statement.class);
       }

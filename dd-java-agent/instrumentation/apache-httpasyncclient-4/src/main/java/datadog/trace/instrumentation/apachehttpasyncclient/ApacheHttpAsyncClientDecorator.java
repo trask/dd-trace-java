@@ -21,11 +21,6 @@ public class ApacheHttpAsyncClientDecorator extends HttpClientDecorator<HttpRequ
   }
 
   @Override
-  public String spanName() {
-    return "http.request";
-  }
-
-  @Override
   protected String component() {
     return "apache-httpasyncclient";
   }

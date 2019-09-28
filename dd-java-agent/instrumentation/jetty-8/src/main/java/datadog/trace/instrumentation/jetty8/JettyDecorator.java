@@ -17,11 +17,6 @@ public class JettyDecorator
   }
 
   @Override
-  public String spanName() {
-    return "jetty.request";
-  }
-
-  @Override
   protected String component() {
     return "jetty-handler";
   }
@@ -60,7 +55,7 @@ public class JettyDecorator
   public AgentSpan onRequest(final AgentSpan span, final HttpServletRequest request) {
     assert span != null;
     if (request != null) {
-      span.setMetadata("servlet.context", request.getContextPath());
+      span.setTag("servlet.context", request.getContextPath());
     }
     return super.onRequest(span, request);
   }
