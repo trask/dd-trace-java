@@ -35,6 +35,7 @@ public class GrpcServerBuilderInstrumentation extends Instrumenter.Default {
       "datadog.trace.agent.decorator.BaseDecorator",
       "datadog.trace.agent.decorator.ServerDecorator",
       packageName + ".GrpcServerDecorator",
+      packageName + ".GrpcExtractAdapter"
     };
   }
 
