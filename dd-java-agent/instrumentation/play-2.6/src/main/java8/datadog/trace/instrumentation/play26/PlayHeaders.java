@@ -1,9 +1,10 @@
 package datadog.trace.instrumentation.play26;
 
 import datadog.trace.instrumentation.api.Propagation;
+import java.util.ArrayList;
+import java.util.List;
 import play.api.mvc.Request;
 import scala.Option;
-import scala.collection.JavaConversions;
 
 public class PlayHeaders implements Propagation.Getter<Request> {
 
@@ -11,7 +12,12 @@ public class PlayHeaders implements Propagation.Getter<Request> {
 
   @Override
   public Iterable<String> keys(final Request carrier) {
-    return JavaConversions.asJavaIterable(carrier.headers().keys());
+    final List<String> javaList = new ArrayList<>();
+    final scala.collection.Iterator<String> scalaIterator = carrier.headers().keys().iterator();
+    while (scalaIterator.hasNext()) {
+      javaList.add(scalaIterator.next());
+    }
+    return javaList;
   }
 
   @Override
