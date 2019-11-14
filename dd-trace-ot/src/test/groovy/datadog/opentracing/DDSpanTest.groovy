@@ -236,28 +236,6 @@ class DDSpanTest extends DDSpecification {
     new ExtractedContext(123G, 456G, 1, "789", [:], [:]) | false
   }
 
-  def "getApplicationRootSpan() in and not in the context of distributed tracing"() {
-    setup:
-    def root = tracer.buildSpan("root").asChildOf((SpanContext) extractedContext).start()
-    def child = tracer.buildSpan("child").asChildOf(root).start()
-
-    expect:
-    root.localRootSpan == root
-    child.localRootSpan == root
-    // Checking for backward compatibility method names
-    root.rootSpan == root
-    child.rootSpan == root
-
-    cleanup:
-    child.finish()
-    root.finish()
-
-    where:
-    extractedContext                                     | isTraceRootSpan
-    null                                                 | true
-    new ExtractedContext(123G, 456G, 1, "789", [:], [:]) | false
-  }
-
   def "sampling priority set on init"() {
     setup:
     def span = tracer.buildSpan("test").start()
